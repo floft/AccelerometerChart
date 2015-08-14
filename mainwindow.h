@@ -5,8 +5,10 @@
 #include <QTouchEvent>
 #include <QMainWindow>
 #include <QtSensors/QAccelerometer>
+#include <QtSensors/QAccelerometerFilter>
 #include <QInputDialog>
 #include "qcustomplot.h"
+#include "accelerometerfilter.h"
 
 namespace Ui {
 class MainWindow;
@@ -26,16 +28,16 @@ private slots:
   void saveFile();
   void contextMenuRequest(QPoint pos);
   void moveLegend();
+  void xAxisChanged(QCPRange range);
 
 private slots:
   void realtimeDataSlot();
-  void filter(QAccelerometerReading* reading);
   
 private:
-  qreal x, y, z;
   Ui::MainWindow *ui;
   QTimer dataTimer;
   QAccelerometer* accelerometer;
+  AccelerometerFilter filter;
 };
 
 #endif // MAINWINDOW_H

@@ -6,9 +6,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
     mainwindow.cpp \
-    qcustomplot.cpp
+    qcustomplot.cpp \
+    accelerometerfilter.cpp
 
 HEADERS  += mainwindow.h \
-    qcustomplot.h
+    qcustomplot.h \
+    accelerometerfilter.h
 
 FORMS    += mainwindow.ui

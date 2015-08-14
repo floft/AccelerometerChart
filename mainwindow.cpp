@@ -3,8 +3,7 @@
 
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),
-  ui(new Ui::MainWindow),
-  x(0), y(0), z(0)
+  ui(new Ui::MainWindow)
 {
   srand(QDateTime::currentDateTime().toTime_t());
   ui->setupUi(this);
@@ -58,16 +57,18 @@ MainWindow::MainWindow(QWidget *parent) :
   connect(ui->customPlot->xAxis, SIGNAL(rangeChanged(QCPRange)), ui->customPlot->xAxis2, SLOT(setRange(QCPRange)));
   connect(ui->customPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), ui->customPlot->yAxis2, SLOT(setRange(QCPRange)));
 
+  // Adjust the tick marks on x-axis scale
+  connect(ui->customPlot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(xAxisChanged(QCPRange)));
+
   // Context menu popup
   ui->customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
   connect(ui->customPlot, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextMenuRequest(QPoint)));
 
   // Setup accelerometer
   accelerometer = new QAccelerometer(this);
-  //accelerometer->addFilter(reinterpret_cast<QSensorFilter*>(this)); // TODO: really bad idea
-  accelerometer->setAccelerationMode(QAccelerometer::Gravity);
-  //qrangelist list = accelerometer->availableDataRates(); // TODO: enable this
-  accelerometer->setDataRate(50);
+  accelerometer->setAccelerationMode(QAccelerometer::Combined);
+  accelerometer->setDataRate(30);
+  accelerometer->addFilter(&filter);
   accelerometer->start();
 
   // Setup a timer that repeatedly calls MainWindow::realtimeDataSlot
@@ -79,6 +80,17 @@ MainWindow::~MainWindow()
 {
   delete accelerometer;
   delete ui;
+}
+
+void MainWindow::xAxisChanged(QCPRange range)
+{
+  double diff = range.upper - range.lower;
+  ui->customPlot->xAxis->setTickStep(diff/5);
+
+  if (diff < 1)
+    ui->customPlot->xAxis->setDateTimeFormat("hh:mm:ss.zzz");
+  else
+    ui->customPlot->xAxis->setDateTimeFormat("hh:mm:ss");
 }
 
 /*void MainWindow::setFilename(QMouseEvent* event, QCPPlotTitle* title)
@@ -154,48 +166,34 @@ void MainWindow::moveLegend()
   }
 }
 
-void MainWindow::filter(QAccelerometerReading* reading)
-{
-  /*
-  x = reading->x();
-  y = reading->y();
-  z = reading->z();
-
-  qDebug("Current device acceleration: x=%f y=%f z=%f", x, y, z);
-  */
-}
-
 void MainWindow::saveFile()
 {
 }
 
 void MainWindow::realtimeDataSlot()
 {
-  // calculate two new data points:
+  bool newData = false;
   double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/1000.0;
   static double lastPointKey = 0;
 
   if (key-lastPointKey > 0.01) // at most add point every 10 ms
   {
-    const QAccelerometerReading* reading = accelerometer->reading();
+    AccelerometerReading reading = filter.get();
+    newData = reading.newData;
 
-    if (reading)
+    if (reading.newData)
     {
-      x = reading->x();
-      y = reading->y();
-      z = reading->z();
+      ui->customPlot->graph(0)->addData(key, reading.x);
+      ui->customPlot->graph(1)->addData(key, reading.y);
+      ui->customPlot->graph(2)->addData(key, reading.z);
+
+      // remove data older than some minutes
+      ui->customPlot->graph(0)->removeDataBefore(key-300);
+      ui->customPlot->graph(1)->removeDataBefore(key-300);
+      ui->customPlot->graph(2)->removeDataBefore(key-300);
+
+      lastPointKey = key;
     }
-
-    ui->customPlot->graph(0)->addData(key, x);
-    ui->customPlot->graph(1)->addData(key, y);
-    ui->customPlot->graph(2)->addData(key, z);
-
-    // remove data older than some minutes
-    ui->customPlot->graph(0)->removeDataBefore(key-300);
-    ui->customPlot->graph(1)->removeDataBefore(key-300);
-    ui->customPlot->graph(2)->removeDataBefore(key-300);
-
-    lastPointKey = key;
   }
 
   if (ui->customPlot->getPaused() == 0)
@@ -211,19 +209,25 @@ void MainWindow::realtimeDataSlot()
     ui->customPlot->replot();
   }
 
-  // calculate frames per second:
-  static double lastFpsKey;
-  static int frameCount;
+  // Calculate frames per second and readings per second
+  static double lastFpsKey = 0;
+  static int frameCount = 0;
+  static int readingCount = 0;
   ++frameCount;
+
+  if (newData)
+    ++readingCount;
 
   if (key-lastFpsKey > 2) // average fps over 2 seconds
   {
     ui->statusBar->showMessage(
-          QString("%1 FPS, Total Data points: %2")
+          QString("%1 FPS, %2 RPS, Readings: %3")
           .arg(frameCount/(key-lastFpsKey), 0, 'f', 0)
-          .arg(ui->customPlot->graph(0)->data()->count()+ui->customPlot->graph(1)->data()->count())
+          .arg(readingCount/(key-lastFpsKey), 0, 'f', 0)
+          .arg(ui->customPlot->graph(0)->data()->count())
           , 0);
     lastFpsKey = key;
     frameCount = 0;
+    readingCount = 0;
   }
 }
