@@ -9034,7 +9034,8 @@ QCustomPlot::QCustomPlot(QWidget *parent) :
   mMultiSelectModifier(Qt::ControlModifier),
   mPaintBuffer(size()),
   mMouseEventElement(0),
-  mReplotting(false)
+  mReplotting(false),
+  paused(0)
 {
   setAttribute(Qt::WA_NoMousePropagation);
   setAttribute(Qt::WA_OpaquePaintEvent);
@@ -9080,6 +9081,7 @@ QCustomPlot::QCustomPlot(QWidget *parent) :
   legend->setLayer(QLatin1String("legend"));
   
   setViewport(rect()); // needs to be called after mPlotLayout has been created
+
   setAttribute(Qt::WA_AcceptTouchEvents);
   grabGesture(Qt::PinchGesture);
   
@@ -23539,47 +23541,92 @@ QPen QCPItemBracket::mainPen() const
 }
 
 bool QCustomPlot::event(QEvent *event) {
-    switch( event->type() ){
-        case QEvent::Gesture: {
-            QGestureEvent *gestureEve = static_cast<QGestureEvent*>(event);
-            if( this->interactions().testFlag(QCP::iRangeZoom) ){
-              if( QGesture *pinch = gestureEve->gesture(Qt::PinchGesture) ){
-                  QPinchGesture *pinchEve = static_cast<QPinchGesture *>(pinch);
-                  qreal scaleFactor = pinchEve->totalScaleFactor( );
-                  if( scaleFactor > 1.0 ){
-                      scaleFactor *= 10;
-                  }else{
-                      scaleFactor *= -10;
-                  }
-                  QWheelEvent *wheelEve = new QWheelEvent( currentTouchPointPos, scaleFactor, Qt::NoButton, Qt::NoModifier, Qt::Vertical );
-                  this->wheelEvent( wheelEve );
-              }
-              return true;
-            }
-        }
-        case QEvent::TouchBegin:
-        case QEvent::TouchUpdate:
-        case QEvent::TouchEnd: {
-            QTouchEvent *touchEvent = static_cast<QTouchEvent *>( event );
-            QList<QTouchEvent::TouchPoint> touchPoints = touchEvent->touchPoints( );
-            if( touchPoints.count( ) == 1 ){
-                const QTouchEvent::TouchPoint &touchPoint0 = touchPoints.first( );
-                currentTouchPointPos = touchPoint0.pos();
-                QMouseEvent *mouseEve = new QMouseEvent(QEvent::MouseButtonPress,currentTouchPointPos,Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
-                if( touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointPressed ){
-                    this->mousePressEvent( mouseEve );
-                }else if( touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointMoved ){
-                    this->mouseMoveEvent( mouseEve );
-                }else if( touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointReleased ){
-                    this->mouseReleaseEvent( mouseEve );
-                }
-            }
-            return true;
-        }
-        default: {
-            break;
-        }
-    }
+  if (event->type() == QEvent::TouchBegin) {
+    // Causes a flicker if we don't pause the updating
+    this->setPaused(1);
+    // Save the initial range so we can scale it as we pinch zoom;
+    // otherwise we get scrolling by just holding two fingers on
+    // the screen
+    yAxisRangeTouch = this->yAxis->range();
+    xAxisRangeTouch = this->xAxis->range();
+  } else if (event->type() == QEvent::TouchEnd) {
+    this->setPaused(0);
+  }
 
-    return QWidget::event( event );
+  switch (event->type()) {
+    case QEvent::TouchBegin:
+    case QEvent::TouchUpdate:
+    case QEvent::TouchEnd: {
+      QTouchEvent *touchEvent = static_cast<QTouchEvent *>(event);
+      QList<QTouchEvent::TouchPoint> touchPoints = touchEvent->touchPoints();
+      if (touchPoints.count() == 2) {
+        // determine scale factor
+        const QTouchEvent::TouchPoint &touchPoint0 = touchPoints.first();
+        const QTouchEvent::TouchPoint &touchPoint1 = touchPoints.last();
+        qreal currentScaleFactor =
+          QLineF(touchPoint0.pos(), touchPoint1.pos()).length()
+          / QLineF(touchPoint0.startPos(), touchPoint1.startPos()).length();
+
+        // Determine if scaling in a particular direction
+        qreal dy = touchPoint1.pos().y() - touchPoint0.pos().y();
+        qreal dx = touchPoint1.pos().x() - touchPoint0.pos().x();
+        bool vertical = false;
+        bool horizontal = false;
+
+        if (dx == 0) {
+            vertical = true;
+            horizontal = false;
+        } else {
+            qreal angle = qAbs(qAtan(dy/dx));
+            vertical = (angle > M_PI/3 && angle < M_PI*2/3) || (angle > M_PI*4/3 && angle < M_PI*5/3);
+            horizontal = (angle < M_PI/6) || (angle > M_PI*5/6 && angle < M_PI*7/6) || (angle > M_PI*11/6);
+        }
+
+        // If we released a finger, base the next zoom on the new range, so
+        // for instance we can use two fingers to zoom, release one, drag,
+        // put another one and and start zooming from where we repositioned
+        if (touchEvent->touchPointStates() & Qt::TouchPointReleased) {
+          yAxisRangeTouch = this->yAxis->range();
+          xAxisRangeTouch = this->xAxis->range();
+
+          // While we maintain our own ranges here, when we release one finger,
+          // we immediately jump to using mDragStart{Vert,Horz}Range, and we can
+          // force that to be updated by pressing the mouse.
+          QMouseEvent *mouseEve = new QMouseEvent(QEvent::MouseButtonPress,
+                                                  (touchPoint0.pos() + touchPoint1.pos())/2,
+                                                  Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+          this->mousePressEvent(mouseEve);
+          this->mouseReleaseEvent(mouseEve);
+        } else {
+          // Horizontal is defined as x-axis +/- 30 degrees, but in the gaps between horizontal
+          // and vertical we'll make it do both.
+          if (!horizontal)
+            this->yAxis->setRange(yAxisRangeTouch.center(),
+                                  yAxisRangeTouch.size()/currentScaleFactor, Qt::AlignCenter);
+          if (!vertical)
+            this->xAxis->setRange(xAxisRangeTouch.center(),
+                                  xAxisRangeTouch.size()/currentScaleFactor, Qt::AlignCenter);
+          this->replot();
+        }
+      } else if (touchPoints.count() == 1) {
+        const QTouchEvent::TouchPoint &touchPoint0 = touchPoints.first();
+        currentTouchPointPos = touchPoint0.pos();
+        QMouseEvent *mouseEve = new QMouseEvent(QEvent::MouseButtonPress, currentTouchPointPos,
+                                                Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        if (touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointPressed) {
+          this->mousePressEvent(mouseEve);
+        } else if (touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointMoved) {
+          this->mouseMoveEvent(mouseEve);
+        } else if (touchEvent->touchPointStates() == (Qt::TouchPointStates)Qt::TouchPointReleased) {
+          this->mouseReleaseEvent(mouseEve);
+        }
+      }
+
+      return true;
+    }
+    default:
+      break;
+  }
+
+  return QWidget::event(event);
 }

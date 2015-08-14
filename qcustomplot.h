@@ -45,6 +45,7 @@
 #include <QMargins>
 #include <qmath.h>
 #include <limits>
+#include <QAtomicInt>
 #include <QGestureEvent>
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
 #  include <qnumeric.h>
@@ -1899,6 +1900,14 @@ protected:
 private:
     bool event(QEvent *event);
     QPointF currentTouchPointPos;
+    QAtomicInt paused;
+    QAtomicInt justReleased;
+    QCPRange yAxisRangeTouch;
+    QCPRange xAxisRangeTouch;
+
+public:
+    bool getPaused() { return paused; }
+    void setPaused(int p) { paused = p; }
 };
 
 
