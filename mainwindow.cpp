@@ -287,44 +287,51 @@ void MainWindow::pressedAnalyze()
     }
     else
     {
-      double sum_x = std::accumulate(history.begin(), history.end(), 0,
+      double sum_x = std::accumulate(history.begin(), history.end(), 0.0,
           [](double result, const AccelerometerReading& r) {
           return result + r.x;
       });
-      double sum_y = std::accumulate(history.begin(), history.end(), 0,
+      double sum_y = std::accumulate(history.begin(), history.end(), 0.0,
           [](double result, const AccelerometerReading& r) {
-          return result + r.x;
+          return result + r.y;
       });
-      double sum_z = std::accumulate(history.begin(), history.end(), 0,
+      double sum_z = std::accumulate(history.begin(), history.end(), 0.0,
           [](double result, const AccelerometerReading& r) {
           return result + r.z;
       });
       double avg_x = sum_x/history.size();
       double avg_y = sum_y/history.size();
       double avg_z = sum_z/history.size();
-      double sum_xm2 = std::accumulate(history.begin(), history.end(), 0,
+      double sum_xm2 = std::accumulate(history.begin(), history.end(), 0.0,
           [avg_x](double result, const AccelerometerReading& r) {
-          return result + std::pow(r.x - avg_x, 2);
+          return result + std::pow(1.0*r.x - avg_x, 2);
       });
-      double sum_ym2 = std::accumulate(history.begin(), history.end(), 0,
+      double sum_ym2 = std::accumulate(history.begin(), history.end(), 0.0,
           [avg_y](double result, const AccelerometerReading& r) {
-          return result + std::pow(r.y - avg_y, 2);
+          return result + std::pow(1.0*r.y - avg_y, 2);
       });
-      double sum_zm2 = std::accumulate(history.begin(), history.end(), 0,
+      double sum_zm2 = std::accumulate(history.begin(), history.end(), 0.0,
           [avg_z](double result, const AccelerometerReading& r) {
-          return result + std::pow(r.z - avg_z, 2);
+          return result + std::pow(1.0*r.z - avg_z, 2);
       });
-      double stdev_s_x = std::sqrt(1.0/(history.size()+1)*sum_xm2);
-      double stdev_s_y = std::sqrt(1.0/(history.size()+1)*sum_ym2);
-      double stdev_s_z = std::sqrt(1.0/(history.size()+1)*sum_zm2);
+      double stdev_s_x = 0;
+      double stdev_s_y = 0;
+      double stdev_s_z = 0;
+
+      if (history.size() > 1)
+      {
+        stdev_s_x = std::sqrt(1.0/(history.size()-1)*sum_xm2);
+        stdev_s_y = std::sqrt(1.0/(history.size()-1)*sum_ym2);
+        stdev_s_z = std::sqrt(1.0/(history.size()-1)*sum_zm2);
+      }
 
       QTextStream s(&msg);
-      s << "Averages:" << endl
+      s << "Averages (m/s^2):" << endl
         << " X " << QString::number(avg_x, 'f', 8) << endl
         << " Y " << QString::number(avg_y, 'f', 8) << endl
         << " Z " << QString::number(avg_z, 'f', 8) << endl
         << endl
-        << "Sample Stdev:" << endl
+        << "Sample Stdev (m/s^2):" << endl
         << " X " << QString::number(stdev_s_x, 'f', 8) << endl
         << " Y " << QString::number(stdev_s_y, 'f', 8) << endl
         << " Z " << QString::number(stdev_s_z, 'f', 8) << endl;
