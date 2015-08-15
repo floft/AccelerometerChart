@@ -2,7 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QTimer>
+#include <QString>
+#include <QFileDialog>
+#include <QMessageBox>
 #include <QTouchEvent>
+#include <QTextStream>
 #include <QMainWindow>
 #include <QtSensors/QAccelerometer>
 #include <QtSensors/QAccelerometerFilter>
@@ -25,15 +29,25 @@ public:
 private slots:
   void mousePress();
   void mouseWheel();
-  void saveFile();
+  void pressedStartStop();
+  void pressedAnalyze();
+  void pressedSave();
   void contextMenuRequest(QPoint pos);
   void moveLegend();
   void xAxisChanged(QCPRange range);
 
 private slots:
   void realtimeDataSlot();
-  
+
 private:
+  void start();
+  void stop();
+  void writeFile(const QString& filename);
+  void buttonEnable(QPushButton* button, bool enabled);
+
+private:
+  bool first;
+  bool started;
   Ui::MainWindow *ui;
   QTimer dataTimer;
   QAccelerometer* accelerometer;

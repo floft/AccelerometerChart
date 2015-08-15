@@ -3,7 +3,9 @@
 
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),
-  ui(new Ui::MainWindow)
+  ui(new Ui::MainWindow),
+  first(true),
+  started(true)
 {
   srand(QDateTime::currentDateTime().toTime_t());
   ui->setupUi(this);
@@ -64,22 +66,69 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
   connect(ui->customPlot, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextMenuRequest(QPoint)));
 
+  // Buttons
+  connect(ui->buttonStartStop, SIGNAL(released()), this, SLOT(pressedStartStop()));
+  connect(ui->buttonAnalyze, SIGNAL(released()), this, SLOT(pressedAnalyze()));
+  connect(ui->buttonSave, SIGNAL(released()), this, SLOT(pressedSave()));
+
   // Setup accelerometer
   accelerometer = new QAccelerometer(this);
   accelerometer->setAccelerationMode(QAccelerometer::Combined);
   accelerometer->setDataRate(30);
   accelerometer->addFilter(&filter);
-  accelerometer->start();
 
   // Setup a timer that repeatedly calls MainWindow::realtimeDataSlot
   connect(&dataTimer, SIGNAL(timeout()), this, SLOT(realtimeDataSlot()));
-  dataTimer.start(0); // Interval 0 means to refresh as fast as possible
+
+  start();
 }
 
 MainWindow::~MainWindow()
 {
   delete accelerometer;
   delete ui;
+}
+
+void MainWindow::buttonEnable(QPushButton* button, bool enabled)
+{
+  if (!button)
+      return;
+
+  button->setEnabled(enabled);
+  QPalette pal = button->palette();
+
+  if (enabled)
+    pal.setColor(QPalette::Button, QColor(Qt::white));
+  else
+    pal.setColor(QPalette::Button, QColor(Qt::lightGray));
+
+  button->setAutoFillBackground(true);
+  button->setPalette(pal);
+  button->update();
+}
+
+void MainWindow::start()
+{
+  ui->customPlot->graph(0)->removeDataAfter(0);
+  ui->customPlot->graph(1)->removeDataAfter(0);
+  ui->customPlot->graph(2)->removeDataAfter(0);
+
+  buttonEnable(ui->buttonAnalyze, false);
+  buttonEnable(ui->buttonSave, false);
+
+  first = true;
+
+  filter.clear();
+  accelerometer->start();
+  dataTimer.start(0); // Interval 0 means to refresh as fast as possible
+}
+
+void MainWindow::stop()
+{
+  accelerometer->stop();
+  dataTimer.stop();
+  buttonEnable(ui->buttonAnalyze, true);
+  buttonEnable(ui->buttonSave, true);
 }
 
 void MainWindow::xAxisChanged(QCPRange range)
@@ -92,19 +141,6 @@ void MainWindow::xAxisChanged(QCPRange range)
   else
     ui->customPlot->xAxis->setDateTimeFormat("hh:mm:ss");
 }
-
-/*void MainWindow::setFilename(QMouseEvent* event, QCPPlotTitle* title)
-{
-  Q_UNUSED(event)
-  // Set the plot title by double clicking on it
-  bool ok;
-  QString fileName = QInputDialog::getText(this, "Qt Accelerometer", "Filename:", QLineEdit::Normal, title->text(), &ok);
-  if (ok)
-  {
-    //title->setText(newTitle);
-    ui->customPlot->replot();
-  }
-}*/
 
 void MainWindow::mousePress()
 {
@@ -134,22 +170,17 @@ void MainWindow::mouseWheel()
 
 void MainWindow::contextMenuRequest(QPoint pos)
 {
-  QMenu *menu = new QMenu(this);
-  menu->setAttribute(Qt::WA_DeleteOnClose);
-
   if (ui->customPlot->legend->selectTest(pos, false) >= 0) // context menu on legend requested
   {
+    QMenu *menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->addAction("Move to top left", this, SLOT(moveLegend()))->setData((int)(Qt::AlignTop|Qt::AlignLeft));
     menu->addAction("Move to top center", this, SLOT(moveLegend()))->setData((int)(Qt::AlignTop|Qt::AlignHCenter));
     menu->addAction("Move to top right", this, SLOT(moveLegend()))->setData((int)(Qt::AlignTop|Qt::AlignRight));
     menu->addAction("Move to bottom right", this, SLOT(moveLegend()))->setData((int)(Qt::AlignBottom|Qt::AlignRight));
     menu->addAction("Move to bottom left", this, SLOT(moveLegend()))->setData((int)(Qt::AlignBottom|Qt::AlignLeft));
-  } else  // general context menu on graphs requested
-  {
-    menu->addAction("Save to file", this, SLOT(saveFile()));
+    menu->popup(ui->customPlot->mapToGlobal(pos));
   }
-
-  menu->popup(ui->customPlot->mapToGlobal(pos));
 }
 
 void MainWindow::moveLegend()
@@ -166,10 +197,6 @@ void MainWindow::moveLegend()
   }
 }
 
-void MainWindow::saveFile()
-{
-}
-
 void MainWindow::realtimeDataSlot()
 {
   bool newData = false;
@@ -178,7 +205,7 @@ void MainWindow::realtimeDataSlot()
 
   if (key-lastPointKey > 0.01) // at most add point every 10 ms
   {
-    AccelerometerReading reading = filter.get();
+    AccelerometerReadingDisplay reading = filter.get();
     newData = reading.newData;
 
     if (reading.newData)
@@ -188,9 +215,11 @@ void MainWindow::realtimeDataSlot()
       ui->customPlot->graph(2)->addData(key, reading.z);
 
       // remove data older than some minutes
+      /*
       ui->customPlot->graph(0)->removeDataBefore(key-300);
       ui->customPlot->graph(1)->removeDataBefore(key-300);
       ui->customPlot->graph(2)->removeDataBefore(key-300);
+      */
 
       lastPointKey = key;
     }
@@ -200,7 +229,6 @@ void MainWindow::realtimeDataSlot()
   {
     // make key axis range scroll with the data (at a constant range size of 8)
     // but only if we haven't scrolled to the left
-    static bool first = true;
     QCPRange xrange = ui->customPlot->xAxis->range();
     if ((xrange.upper >= key-0.5 && xrange.upper <= key+0.5) || first)
       ui->customPlot->xAxis->setRange(key+0.25, xrange.upper-xrange.lower, Qt::AlignRight);
@@ -230,4 +258,121 @@ void MainWindow::realtimeDataSlot()
     frameCount = 0;
     readingCount = 0;
   }
+}
+
+void MainWindow::pressedStartStop()
+{
+    if (started)
+    {
+        started = false;
+        stop();
+        ui->buttonStartStop->setText("Start");
+    }
+    else
+    {
+        started = true;
+        start();
+        ui->buttonStartStop->setText("Stop");
+    }
+}
+
+void MainWindow::pressedAnalyze()
+{
+    std::vector<AccelerometerReading> history = filter.getAll();
+    QString msg;
+
+    if (history.empty())
+    {
+        msg = "No data.";
+    }
+    else
+    {
+      double sum_x = std::accumulate(history.begin(), history.end(), 0,
+          [](double result, const AccelerometerReading& r) {
+          return result + r.x;
+      });
+      double sum_y = std::accumulate(history.begin(), history.end(), 0,
+          [](double result, const AccelerometerReading& r) {
+          return result + r.x;
+      });
+      double sum_z = std::accumulate(history.begin(), history.end(), 0,
+          [](double result, const AccelerometerReading& r) {
+          return result + r.z;
+      });
+      double avg_x = sum_x/history.size();
+      double avg_y = sum_y/history.size();
+      double avg_z = sum_z/history.size();
+      double sum_xm2 = std::accumulate(history.begin(), history.end(), 0,
+          [avg_x](double result, const AccelerometerReading& r) {
+          return result + std::pow(r.x - avg_x, 2);
+      });
+      double sum_ym2 = std::accumulate(history.begin(), history.end(), 0,
+          [avg_y](double result, const AccelerometerReading& r) {
+          return result + std::pow(r.y - avg_y, 2);
+      });
+      double sum_zm2 = std::accumulate(history.begin(), history.end(), 0,
+          [avg_z](double result, const AccelerometerReading& r) {
+          return result + std::pow(r.z - avg_z, 2);
+      });
+      double stdev_s_x = std::sqrt(1.0/(history.size()+1)*sum_xm2);
+      double stdev_s_y = std::sqrt(1.0/(history.size()+1)*sum_ym2);
+      double stdev_s_z = std::sqrt(1.0/(history.size()+1)*sum_zm2);
+
+      QTextStream s(&msg);
+      s << "Averages:" << endl
+        << " X " << QString::number(avg_x, 'f', 8) << endl
+        << " Y " << QString::number(avg_y, 'f', 8) << endl
+        << " Z " << QString::number(avg_z, 'f', 8) << endl
+        << endl
+        << "Sample Stdev:" << endl
+        << " X " << QString::number(stdev_s_x, 'f', 8) << endl
+        << " Y " << QString::number(stdev_s_y, 'f', 8) << endl
+        << " Z " << QString::number(stdev_s_z, 'f', 8) << endl;
+    }
+
+    QMessageBox m;
+    m.setText(msg);
+    m.setStandardButtons(QMessageBox::Ok);
+    m.setDefaultButton(QMessageBox::Ok);
+    m.exec();
+}
+
+void MainWindow::pressedSave()
+{
+  QString date = QDateTime::currentDateTime().toString("yyyyMMdd_hhmm");
+  QString filename = QFileDialog::getSaveFileName(
+              this, tr("Save File"), "accelerometer_" + date + ".csv", tr("*.csv"));
+
+  if (!filename.isEmpty())
+  {
+    buttonEnable(ui->buttonSave, false);
+    writeFile(filename);
+  }
+}
+
+void MainWindow::writeFile(const QString& filename)
+{
+  QFile file(filename);
+
+  if (file.open(QFile::WriteOnly | QFile::Truncate | QFile::Text))
+  {
+    QTextStream f(&file);
+    std::vector<AccelerometerReading> history = filter.getAll();
+
+    f << "timestamp, x (m/s^2), y (m/s^2), z (m/s^2)" << endl;
+
+    for (std::vector<AccelerometerReading>::const_iterator i = history.begin();
+         i != history.end(); ++i)
+      f << i->time << ", " << i->x << ", " << i->y << ", " << i->z << endl;
+  }
+  else
+  {
+      QMessageBox m;
+      m.setText("Could not save file.");
+      m.setStandardButtons(QMessageBox::Ok);
+      m.setDefaultButton(QMessageBox::Ok);
+      m.exec();
+  }
+
+  buttonEnable(ui->buttonSave, true);
 }

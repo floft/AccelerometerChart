@@ -1,20 +1,33 @@
 #include "accelerometerfilter.h"
 
 AccelerometerFilter::AccelerometerFilter()
+    : newData(false)
 {
 }
 
 bool AccelerometerFilter::filter(QAccelerometerReading *qreading)
 {
   QMutexLocker lock(&mutex);
-  reading = AccelerometerReading(qreading->x(), qreading->y(), qreading->z());
+  history.push_back(AccelerometerReading(qreading->x(), qreading->y(), qreading->z()));
+  newData = true;
   return false;
 }
 
-AccelerometerReading AccelerometerFilter::get()
+AccelerometerReadingDisplay AccelerometerFilter::get()
 {
     QMutexLocker lock(&mutex);
-    AccelerometerReading r = reading;
-    reading.newData = false;
+
+    if (history.empty())
+        return AccelerometerReadingDisplay();
+
+    const AccelerometerReading& last = history.back();
+    AccelerometerReadingDisplay r(last.x, last.y, last.z, newData);
+    newData = false;
     return r;
+}
+
+std::vector<AccelerometerReading> AccelerometerFilter::getAll()
+{
+    QMutexLocker lock(&mutex);
+    return history;
 }
