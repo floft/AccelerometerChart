@@ -14,3 +14,10 @@ HEADERS  += mainwindow.h \
     accelerometerfilter.h
 
 FORMS    += mainwindow.ui
+
+winrt {
+    WINRT_MANIFEST.version = 1.0.0.0
+    WINRT_MANIFEST.name = Accelerometer Chart
+    WINRT_MANIFEST.publisher = Solution Engineering, Inc.
+    WINRT_MANIFEST.description = A simple GPL strip chart accelerometer
+}

@@ -430,8 +430,9 @@ void MainWindow::pressedSave()
     path += QDir::separator();
 
   QString date = QDateTime::currentDateTime().toString("yyyyMMdd_hhmm");
-  QString filename = QFileDialog::getSaveFileName(this, tr("Save File"),
-                        path + "accelerometer_" + date + ".csv", tr("*.csv"));
+  QString default_filename = path + "accelerometer_" + date + ".csv";
+  QString filename = QFileDialog::getSaveFileName(this,
+                        tr("Save File"), default_filename, tr("*.csv"));
 
   if (!filename.isEmpty())
   {
