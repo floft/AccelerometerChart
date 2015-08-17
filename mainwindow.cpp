@@ -4,6 +4,8 @@
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),
   ui(new Ui::MainWindow),
+  settings(QStandardPaths::writableLocation(QStandardPaths::DataLocation)
+           + QDir::separator() + "settings.ini", QSettings::IniFormat),
   first(true),
   started(true)
 {
@@ -91,7 +93,23 @@ MainWindow::MainWindow(QWidget *parent) :
   button_enabled.setColor(QPalette::Button, QColor(Qt::white));
   button_disabled.setColor(QPalette::Button, QColor(Qt::lightGray));
 
-  start();
+  // Load previous settings
+  bool timed = settings.value("timed").toBool();
+  ui->checkBoxTimed->setChecked(timed);
+
+  // When we start the application, either start it automatically if we're
+  // not using a fixed period of time or set it up so we can press Start to
+  // start it if we are using a fixed period of time
+  if (timed)
+    stop();
+  else
+    start();
+
+  // Setup a timer that repeatedly calls MainWindow::realtimeDataSlot
+  connect(&dataTimer, SIGNAL(timeout()), this, SLOT(realtimeDataSlot()));
+
+  // Stop it after a certain period of time
+  connect(&finishTimer, SIGNAL(timeout()), this, SLOT(finishSlot()));
 }
 
 MainWindow::~MainWindow()
@@ -113,23 +131,53 @@ void MainWindow::buttonEnable(QPushButton* button, bool enabled)
 
 void MainWindow::start()
 {
+  started = true;
+  first = true;
+
+  // Disable buttons
+  buttonEnable(ui->buttonStartStop, true);
+  buttonEnable(ui->buttonAnalyze, false);
+  buttonEnable(ui->buttonSave, false);
+  ui->checkBoxTimed->setEnabled(false);
+  ui->buttonStartStop->setText("Stop");
+
+  // Save the last used setting
+  settings.setValue("timed", ui->checkBoxTimed->isChecked());
+
+  // Clear old data
   ui->customPlot->graph(0)->removeDataAfter(0);
   ui->customPlot->graph(1)->removeDataAfter(0);
   ui->customPlot->graph(2)->removeDataAfter(0);
 
-  first = true;
-
+  // Start the recording
   filter.start();
   dataTimer.start(0); // Interval 0 means to refresh as fast as possible
+
+  // If checked, only run for a certain period of time
+  if (ui->checkBoxTimed->isChecked())
+    finishTimer.start(5*1000);
 }
 
 void MainWindow::stop()
 {
+  started = false;
+
+  // Stop recording
   filter.stop();
   dataTimer.stop();
+  finishTimer.stop();
+
+  // Enable buttons
+  ui->buttonStartStop->setText("Start");
   buttonEnable(ui->buttonStartStop, true);
   buttonEnable(ui->buttonAnalyze, true);
   buttonEnable(ui->buttonSave, true);
+  ui->checkBoxTimed->setEnabled(true);
+}
+
+void MainWindow::finishSlot()
+{
+    stop();
 }
 
 void MainWindow::xAxisChanged(QCPRange range)
@@ -202,11 +250,12 @@ void MainWindow::realtimeDataSlot()
 {
   if (first)
   {
-    // These are here instead of in start() so that they actually do something
+    // These are here as well as in start() so that they actually do something
     // when the application is first started up.
     buttonEnable(ui->buttonStartStop, true);
     buttonEnable(ui->buttonAnalyze, false);
     buttonEnable(ui->buttonSave, false);
+    ui->checkBoxTimed->setEnabled(false);
   }
 
   bool newData = false;
@@ -223,13 +272,6 @@ void MainWindow::realtimeDataSlot()
       ui->customPlot->graph(0)->addData(key, reading.x);
       ui->customPlot->graph(1)->addData(key, reading.y);
       ui->customPlot->graph(2)->addData(key, reading.z);
-
-      // remove data older than some minutes
-      /*
-      ui->customPlot->graph(0)->removeDataBefore(key-300);
-      ui->customPlot->graph(1)->removeDataBefore(key-300);
-      ui->customPlot->graph(2)->removeDataBefore(key-300);
-      */
 
       lastPointKey = key;
     }
@@ -273,17 +315,9 @@ void MainWindow::realtimeDataSlot()
 void MainWindow::pressedStartStop()
 {
     if (started)
-    {
-        started = false;
         stop();
-        ui->buttonStartStop->setText("Start");
-    }
     else
-    {
-        started = true;
         start();
-        ui->buttonStartStop->setText("Stop");
-    }
 }
 
 void MainWindow::pressedAnalyze()

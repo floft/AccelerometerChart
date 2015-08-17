@@ -4,6 +4,7 @@
 #include <numeric>
 #include <QTimer>
 #include <QString>
+#include <QSettings>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTouchEvent>
@@ -40,6 +41,7 @@ private slots:
 
 private slots:
   void realtimeDataSlot();
+  void finishSlot();
 
 private:
   void start();
@@ -48,10 +50,12 @@ private:
   void buttonEnable(QPushButton* button, bool enabled);
 
 private:
+  QSettings settings;
   bool first;
   bool started;
   Ui::MainWindow *ui;
   QTimer dataTimer;
+  QTimer finishTimer;
   QPalette button_enabled, button_disabled;
   QAccelerometer* accelerometer;
   AccelerometerFilter filter;

@@ -111,6 +111,46 @@ color: black;
        <property name="horizontalSpacing">
         <number>6</number>
        </property>
+       <item row="0" column="0">
+        <widget class="QFrame" name="frame_3">
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="buttonStartStop">
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="text">
+             <string>Stop</string>
+            </property>
+            <property name="flat">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
        <item row="0" column="1">
         <widget class="QFrame" name="frame_4">
          <property name="frameShape">
@@ -138,7 +178,7 @@ color: black;
           <item row="0" column="0">
            <widget class="QPushButton" name="buttonAnalyze">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="palette">
              <palette>
@@ -326,46 +366,6 @@ color: black;
          </layout>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QFrame" name="frame_3">
-         <property name="frameShape">
-          <enum>QFrame::Box</enum>
-         </property>
-         <property name="frameShadow">
-          <enum>QFrame::Plain</enum>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <property name="spacing">
-           <number>0</number>
-          </property>
-          <item row="0" column="0">
-           <widget class="QPushButton" name="buttonStartStop">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>Stop</string>
-            </property>
-            <property name="flat">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
        <item row="0" column="2">
         <widget class="QFrame" name="frame_5">
          <property name="frameShape">
@@ -393,7 +393,7 @@ color: black;
           <item row="0" column="0">
            <widget class="QPushButton" name="buttonSave">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="palette">
              <palette>
@@ -579,6 +579,31 @@ color: black;
            </widget>
           </item>
          </layout>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QCheckBox" name="checkBoxTimed">
+         <property name="maximumSize">
+          <size>
+           <width>80</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QCheckBox::indicator { width: 16px; height: 16px; }</string>
+         </property>
+         <property name="text">
+          <string>5 s</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>16</width>
+           <height>16</height>
+          </size>
+         </property>
         </widget>
        </item>
       </layout>
