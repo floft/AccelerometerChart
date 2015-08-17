@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Qt Accelerometer</string>
+   <string>Accelerometer Chart</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <property name="styleSheet">
