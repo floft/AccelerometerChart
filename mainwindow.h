@@ -51,6 +51,7 @@ private:
   bool started;
   Ui::MainWindow *ui;
   QTimer dataTimer;
+  QPalette button_enabled, button_disabled;
   QAccelerometer* accelerometer;
   AccelerometerFilter filter;
 };

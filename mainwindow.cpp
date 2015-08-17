@@ -77,8 +77,19 @@ MainWindow::MainWindow(QWidget *parent) :
   accelerometer->setDataRate(30);
   accelerometer->addFilter(&filter);
 
+  // We'll always keep it running since on the phone apparently calling
+  // stop makes the whole application freeze. Thus, we'll just start/stop
+  // recording data not actually requesting data from the accelerometer
+  accelerometer->start();
+
   // Setup a timer that repeatedly calls MainWindow::realtimeDataSlot
   connect(&dataTimer, SIGNAL(timeout()), this, SLOT(realtimeDataSlot()));
+
+  // Button enabled/disabled coloring
+  button_enabled = ui->buttonStartStop->palette();
+  button_disabled = ui->buttonStartStop->palette();
+  button_enabled.setColor(QPalette::Button, QColor(Qt::white));
+  button_disabled.setColor(QPalette::Button, QColor(Qt::lightGray));
 
   start();
 }
@@ -95,15 +106,8 @@ void MainWindow::buttonEnable(QPushButton* button, bool enabled)
       return;
 
   button->setEnabled(enabled);
-  QPalette pal = button->palette();
-
-  if (enabled)
-    pal.setColor(QPalette::Button, QColor(Qt::white));
-  else
-    pal.setColor(QPalette::Button, QColor(Qt::lightGray));
-
   button->setAutoFillBackground(true);
-  button->setPalette(pal);
+  button->setPalette((enabled)?button_enabled:button_disabled);
   button->update();
 }
 
@@ -113,20 +117,17 @@ void MainWindow::start()
   ui->customPlot->graph(1)->removeDataAfter(0);
   ui->customPlot->graph(2)->removeDataAfter(0);
 
-  buttonEnable(ui->buttonAnalyze, false);
-  buttonEnable(ui->buttonSave, false);
-
   first = true;
 
-  filter.clear();
-  accelerometer->start();
+  filter.start();
   dataTimer.start(0); // Interval 0 means to refresh as fast as possible
 }
 
 void MainWindow::stop()
 {
-  accelerometer->stop();
+  filter.stop();
   dataTimer.stop();
+  buttonEnable(ui->buttonStartStop, true);
   buttonEnable(ui->buttonAnalyze, true);
   buttonEnable(ui->buttonSave, true);
 }
@@ -199,6 +200,15 @@ void MainWindow::moveLegend()
 
 void MainWindow::realtimeDataSlot()
 {
+  if (first)
+  {
+    // These are here instead of in start() so that they actually do something
+    // when the application is first started up.
+    buttonEnable(ui->buttonStartStop, true);
+    buttonEnable(ui->buttonAnalyze, false);
+    buttonEnable(ui->buttonSave, false);
+  }
+
   bool newData = false;
   double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/1000.0;
   static double lastPointKey = 0;
@@ -278,6 +288,10 @@ void MainWindow::pressedStartStop()
 
 void MainWindow::pressedAnalyze()
 {
+    buttonEnable(ui->buttonStartStop, false);
+    buttonEnable(ui->buttonAnalyze, false);
+    buttonEnable(ui->buttonSave, false);
+
     std::vector<AccelerometerReading> history = filter.getAll();
     QString msg;
 
@@ -342,10 +356,18 @@ void MainWindow::pressedAnalyze()
     m.setStandardButtons(QMessageBox::Ok);
     m.setDefaultButton(QMessageBox::Ok);
     m.exec();
+
+    buttonEnable(ui->buttonStartStop, true);
+    buttonEnable(ui->buttonAnalyze, true);
+    buttonEnable(ui->buttonSave, true);
 }
 
 void MainWindow::pressedSave()
 {
+  buttonEnable(ui->buttonStartStop, false);
+  buttonEnable(ui->buttonAnalyze, false);
+  buttonEnable(ui->buttonSave, false);
+
   QString date = QDateTime::currentDateTime().toString("yyyyMMdd_hhmm");
   QString filename = QFileDialog::getSaveFileName(
               this, tr("Save File"), "accelerometer_" + date + ".csv", tr("*.csv"));
@@ -355,6 +377,10 @@ void MainWindow::pressedSave()
     buttonEnable(ui->buttonSave, false);
     writeFile(filename);
   }
+
+  buttonEnable(ui->buttonStartStop, true);
+  buttonEnable(ui->buttonAnalyze, true);
+  buttonEnable(ui->buttonSave, true);
 }
 
 void MainWindow::writeFile(const QString& filename)

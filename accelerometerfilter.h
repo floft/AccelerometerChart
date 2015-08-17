@@ -49,6 +49,7 @@ class AccelerometerFilter
 
     QMutex mutex;
     bool newData;
+    bool record;
     std::vector<AccelerometerReading> history;
 
 public:
@@ -63,8 +64,10 @@ public:
     // Get all the data for logging
     std::vector<AccelerometerReading> getAll();
 
-    // Clear all the data when starting a new recording session
-    void clear() { history.clear(); }
+    // Start/stop recording data since we can't start/stop
+    // the accelerometer without freezing the application
+    void start();
+    void stop();
 };
 
 #endif // ACCELEROMETERFILTER_H
