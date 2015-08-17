@@ -368,9 +368,18 @@ void MainWindow::pressedSave()
   buttonEnable(ui->buttonAnalyze, false);
   buttonEnable(ui->buttonSave, false);
 
+  // Note, at the moment we get the following message and this is empty.
+  //   io\qstandardpaths_winrt.cpp:118: class QString __cdecl
+  //   QStandardPaths::writableLocation(enum QStandardPaths::
+  //   StandardLocation): Unimplemented code.
+  QString path = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+
+  if (!path.isEmpty())
+    path += QDir::separator();
+
   QString date = QDateTime::currentDateTime().toString("yyyyMMdd_hhmm");
-  QString filename = QFileDialog::getSaveFileName(
-              this, tr("Save File"), "accelerometer_" + date + ".csv", tr("*.csv"));
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save File"),
+                        path + "accelerometer_" + date + ".csv", tr("*.csv"));
 
   if (!filename.isEmpty())
   {

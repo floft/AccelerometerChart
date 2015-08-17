@@ -9,6 +9,7 @@
 #include <QTouchEvent>
 #include <QTextStream>
 #include <QMainWindow>
+#include <QStandardPaths>
 #include <QtSensors/QAccelerometer>
 #include <QtSensors/QAccelerometerFilter>
 #include <QInputDialog>
