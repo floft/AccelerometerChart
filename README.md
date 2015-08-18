@@ -37,9 +37,21 @@ This is a simple GPL strip chart accelerometer app for Windows.
  * Make sure you don't have qmake from a different Qt installation in your path
    and then open and build the created project in Visual Studio.
 
-### Interesting Bits ###
+### Examples Used ###
 
- * Improved QCustomPlot touchscreen support
+ * [QCustomPlot Interaction](http://qcustomplot.com/index.php/demos/interactionexample)
+   for initial setup of the plot
+
+ * [QCustomPlot Realtime Data](http://qcustomplot.com/index.php/demos/realtimedatademo)
+   for plotting live data
+
+ * [Qt Pinch Zoom](http://qt.apidoc.info/4.8.5/touch-pinchzoom-graphicsview-cpp.html)
+   for improved QCustomPlot touchscreen support
+
+ * [Qt Bubble Level](http://qt.apidoc.info/4.7.4/demos-mobile-qtbubblelevel.html)
+   for accelerometer readings
+
+### Known Bugs ###
 
  * Native file dialog is not shown on Windows Phone 8.1 because Qt for WinRT
    is using PickSaveFileAsync rather than PickSaveFileAndContinue, and so
