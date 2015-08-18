@@ -58,3 +58,7 @@ This is a simple GPL strip chart accelerometer app for Windows.
    saving files is limited, see
    [QTBUG-47802](https://bugreports.qt.io/browse/QTBUG-47802) or
    [QTBUG-44387](https://bugreports.qt.io/browse/QTBUG-44387).
+
+ * There are times where on the desktop the accelerometer readings may lag.
+   This happens if you set the accelerometer rate higher than the plotting
+   frame rate, but it also appears to happen at other times as well.
