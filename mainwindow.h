@@ -19,7 +19,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <numeric>
+#include <algorithm>
 #include <QTimer>
 #include <QString>
 #include <QSettings>

@@ -353,36 +353,34 @@ void MainWindow::pressedAnalyze()
     }
     else
     {
-      double sum_x = std::accumulate(history.begin(), history.end(), 0.0,
-          [](double result, const AccelerometerReading& r) {
-          return result + r.x;
-      });
-      double sum_y = std::accumulate(history.begin(), history.end(), 0.0,
-          [](double result, const AccelerometerReading& r) {
-          return result + r.y;
-      });
-      double sum_z = std::accumulate(history.begin(), history.end(), 0.0,
-          [](double result, const AccelerometerReading& r) {
-          return result + r.z;
-      });
-      double avg_x = sum_x/history.size();
-      double avg_y = sum_y/history.size();
-      double avg_z = sum_z/history.size();
-      double sum_xm2 = std::accumulate(history.begin(), history.end(), 0.0,
-          [avg_x](double result, const AccelerometerReading& r) {
-          return result + std::pow(1.0*r.x - avg_x, 2);
-      });
-      double sum_ym2 = std::accumulate(history.begin(), history.end(), 0.0,
-          [avg_y](double result, const AccelerometerReading& r) {
-          return result + std::pow(1.0*r.y - avg_y, 2);
-      });
-      double sum_zm2 = std::accumulate(history.begin(), history.end(), 0.0,
-          [avg_z](double result, const AccelerometerReading& r) {
-          return result + std::pow(1.0*r.z - avg_z, 2);
-      });
+      double sum_x = 0;
+      double sum_y = 0;
+      double sum_z = 0;
+      double sum_xm2 = 0;
+      double sum_ym2 = 0;
+      double sum_zm2 = 0;
       double stdev_s_x = 0;
       double stdev_s_y = 0;
       double stdev_s_z = 0;
+
+      std::for_each(history.begin(), history.end(),
+          [&sum_x, &sum_y, &sum_z](const AccelerometerReading& r) {
+          sum_x += r.x;
+          sum_y += r.y;
+          sum_z += r.z;
+      });
+
+      double avg_x = sum_x/history.size();
+      double avg_y = sum_y/history.size();
+      double avg_z = sum_z/history.size();
+
+      std::for_each(history.begin(), history.end(),
+          [&sum_xm2, &sum_ym2, &sum_zm2,
+            &avg_x, &avg_y, &avg_z](const AccelerometerReading& r) {
+          sum_xm2 += std::pow(1.0*r.x - avg_x, 2);
+          sum_ym2 += std::pow(1.0*r.y - avg_y, 2);
+          sum_zm2 += std::pow(1.0*r.z - avg_z, 2);
+      });
 
       if (history.size() > 1)
       {
