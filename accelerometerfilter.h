@@ -76,6 +76,9 @@ public:
     // Called when new data arrives
 	bool filter(QAccelerometerReading *reading);
 
+    // Have we recorded any data?
+    bool empty();
+
     // Get the last reading for displaying
     AccelerometerReadingDisplay get();
 

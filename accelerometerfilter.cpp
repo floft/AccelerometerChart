@@ -36,6 +36,12 @@ bool AccelerometerFilter::filter(QAccelerometerReading *qreading)
   return false;
 }
 
+bool AccelerometerFilter::empty()
+{
+    QMutexLocker lock(&mutex);
+    return history.empty();
+}
+
 AccelerometerReadingDisplay AccelerometerFilter::get()
 {
     QMutexLocker lock(&mutex);

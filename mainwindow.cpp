@@ -102,9 +102,6 @@ MainWindow::MainWindow(QWidget *parent) :
   // recording data not actually requesting data from the accelerometer
   accelerometer->start();
 
-  // Setup a timer that repeatedly calls MainWindow::realtimeDataSlot
-  connect(&dataTimer, SIGNAL(timeout()), this, SLOT(realtimeDataSlot()));
-
   // Button enabled/disabled coloring
   button_enabled = ui->buttonStartStop->palette();
   button_disabled = ui->buttonStartStop->palette();
@@ -128,6 +125,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
   // Stop it after a certain period of time
   connect(&finishTimer, SIGNAL(timeout()), this, SLOT(finishSlot()));
+
+  // Start with delay to reduce effect of touching the "Start"
+  // button when recording for set amount of time
+  connect(&startTimer, SIGNAL(timeout()), this, SLOT(startSlot()));
 }
 
 MainWindow::~MainWindow()
@@ -151,6 +152,9 @@ void MainWindow::start()
 {
   started = true;
   first = true;
+
+  // Stop calling start
+  startTimer.stop();
 
   // Disable buttons
   buttonEnable(ui->buttonStartStop, true);
@@ -176,6 +180,21 @@ void MainWindow::start()
     finishTimer.start(5*1000);
 }
 
+void MainWindow::delayStart()
+{
+  started = true;
+
+  // Disable all buttons until it starts running
+  buttonEnable(ui->buttonStartStop, true);
+  buttonEnable(ui->buttonAnalyze, false);
+  buttonEnable(ui->buttonSave, false);
+  ui->checkBoxTimed->setEnabled(false);
+  ui->buttonStartStop->setText("Stop");
+
+  // Delay 2 seconds
+  startTimer.start(2000);
+}
+
 void MainWindow::stop()
 {
   started = false;
@@ -185,17 +204,30 @@ void MainWindow::stop()
   dataTimer.stop();
   finishTimer.stop();
 
+  // If not recording yet, cancel starting it soon
+  startTimer.stop();
+
   // Enable buttons
   ui->buttonStartStop->setText("Start");
   buttonEnable(ui->buttonStartStop, true);
   buttonEnable(ui->buttonAnalyze, true);
   buttonEnable(ui->buttonSave, true);
   ui->checkBoxTimed->setEnabled(true);
+
+  // You'll probably be looking for these analysis values if you're using
+  // the set time mode. And, make sure there's actually data to display.
+  if (ui->checkBoxTimed->isChecked() && !filter.empty())
+      pressedAnalyze();
 }
 
 void MainWindow::finishSlot()
 {
     stop();
+}
+
+void MainWindow::startSlot()
+{
+    start();
 }
 
 void MainWindow::xAxisChanged(QCPRange range)
@@ -334,6 +366,8 @@ void MainWindow::pressedStartStop()
 {
     if (started)
         stop();
+    else if (ui->checkBoxTimed->isChecked())
+        delayStart(); // Reduce effect of tapping "Start" on the readings
     else
         start();
 }

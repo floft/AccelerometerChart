@@ -60,9 +60,11 @@ private slots:
 private slots:
   void realtimeDataSlot();
   void finishSlot();
+  void startSlot();
 
 private:
   void start();
+  void delayStart();
   void stop();
   void writeFile(const QString& filename);
   void buttonEnable(QPushButton* button, bool enabled);
@@ -73,6 +75,7 @@ private:
   bool started;
   Ui::MainWindow *ui;
   QTimer dataTimer;
+  QTimer startTimer;
   QTimer finishTimer;
   QPalette button_enabled, button_disabled;
   QAccelerometer* accelerometer;
