@@ -3,6 +3,8 @@ Accelerometer Chart
 
 This is a simple GPL strip chart accelerometer app for Windows.
 
+![Demo](https://raw.githubusercontent.com/floft/AccelerometerChart/master/demo.png)
+
 ### Building ###
 
  * Plug in the phone to USB. Open Visual Studio 2013.
